@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Bench</title>
+<style>
+  :root{
+    --bg:#EFEADA;
+    --panel:#FBF9F1;
+    --ink:#22201B;
+    --line:#C7BFA6;
+    --mustard:#DDA53B;
+    --teal:#2E8B84;
+    --mustard-ink:#4a310;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0;
+    background-color:var(--bg);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(34,32,27,0.06) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(90deg, rgba(34,32,27,0.06) 0 1px, transparent 1px 24px);
+    color:var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height:1.5;
+  }
+  .mono{
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  }
+  a{ color:var(--teal); }
+  button{ font-family:inherit; }
+  :focus-visible{ outline:3px solid var(--teal); outline-offset:2px; }
+
+  .wrap{
+    max-width:1040px;
+    margin:0 auto;
+    padding:32px 20px 80px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    margin-bottom:44px;
+    flex-wrap:wrap;
+  }
+  .mark{
+    display:grid;
+    grid-template-columns:repeat(7, 8px);
+    grid-template-rows:repeat(7, 8px);
+    flex:none;
+  }
+  .mark span{ width:8px; height:8px; }
+  header .title-block{ min-width:0; }
+  h1{
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    font-size:clamp(1.8rem, 4.6vw, 2.7rem);
+    font-weight:700;
+    letter-spacing:-0.01em;
+    margin:0 0 4px;
+  }
+  header p{
+    margin:0;
+    color:#514c3f;
+    font-size:0.98rem;
+    max-width:52ch;
+  }
+
+  h2{
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    font-size:1.4rem;
+    margin:0 0 6px;
+  }
+  section{ margin-bottom:56px; }
+  .section-sub{ margin:0 0 20px; color:#514c3f; font-size:0.95rem; }
+
+  /* ---------- Panels (retro dialog-box chrome) ---------- */
+  .panel{
+    background:var(--panel);
+    border:2px solid var(--ink);
+    box-shadow:4px 4px 0 var(--ink);
+    padding:20px;
+  }
+
+  /* ---------- Maker layout ---------- */
+  .maker{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:24px;
+    align-items:start;
+  }
+  @media (max-width:720px){
+    .maker{ grid-template-columns:1fr; }
+  }
+
+  .canvas-panel{ display:inline-flex; flex-direction:column; gap:12px; align-items:center; }
+  #board{
+    background:#ffffff;
+    border:2px solid var(--ink);
+    box-shadow:4px 4px 0 var(--ink);
+    width:min(384px, 82vw);
+    height:min(384px, 82vw);
+    image-rendering:pixelated;
+    touch-action:none;
+    cursor:crosshair;
+  }
+  .board-meta{
+    display:flex; justify-content:space-between; width:min(384px, 82vw);
+    font-size:0.82rem; color:#514c3f;
+  }
+
+  .controls{ display:flex; flex-direction:column; gap:18px; }
+  .control-row label.field-label{
+    display:block; font-size:0.85rem; margin-bottom:8px; color:#3a3729;
+  }
+
+  .tool-group{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{
+    background:var(--panel);
+    border:2px solid var(--ink);
+    box-shadow:3px 3px 0 var(--ink);
+    padding:8px 14px;
+    font-size:0.88rem;
+    cursor:pointer;
+    color:var(--ink);
+    transition:transform .04s ease;
+  }
+  .btn:hover{ background:#fff; }
+  .btn:active{ transform:translate(3px,3px); box-shadow:0 0 0 var(--ink); }
+  .btn.active{ background:var(--mustard); border-color:var(--mustard-ink); }
+  .btn.primary{ background:var(--teal); color:#fff; border-color:#1c5a55; }
+  .btn.primary:hover{ background:#347e78; }
+  .btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn:disabled:active{ transform:none; box-shadow:3px 3px 0 var(--ink); }
+
+  .swatches{
+    display:grid;
+    grid-template-columns:repeat(8, 1fr);
+    gap:6px;
+    max-width:280px;
+  }
+  .swatch{
+    width:28px; height:28px;
+    border:2px solid var(--ink);
+    cursor:pointer;
+    padding:0;
+  }
+  .swatch.selected{ outline:3px solid var(--teal); outline-offset:2px; }
+  .swatch-custom{
+    display:flex; align-items:center; gap:8px; margin-top:10px;
+  }
+  .swatch-custom input[type=color]{
+    width:34px; height:28px; border:2px solid var(--ink); padding:0; background:none; cursor:pointer;
+  }
+  .current-color{
+    display:flex; align-items:center; gap:8px; font-size:0.82rem; color:#3a3729;
+  }
+  .current-color .chip{ width:16px; height:16px; border:2px solid var(--ink); display:inline-block; }
+
+  input[type=text]{
+    width:100%;
+    padding:9px 10px;
+    border:2px solid var(--ink);
+    background:#fff;
+    font-size:0.95rem;
+    font-family:inherit;
+  }
+
+  select{
+    padding:8px 10px;
+    border:2px solid var(--ink);
+    background:#fff;
+    font-family:inherit;
+    font-size:0.88rem;
+    cursor:pointer;
+  }
+  .download-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+  .piece-download{ display:flex; gap:6px; align-items:center; }
+  .piece-download select{
+    padding:3px 4px; font-size:0.7rem; box-shadow:none; flex:1; min-width:0;
+  }
+  .piece-download button{
+    padding:3px 8px; font-size:0.7rem; box-shadow:2px 2px 0 var(--ink);
+  }
+
+  .status-line{ font-size:0.85rem; min-height:1.2em; }
+  .status-line.error{ color:#8a2f27; }
+  .status-line.ok{ color:#1c5a55; }
+
+  /* ---------- Gallery ---------- */
+  .gallery-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));
+    gap:16px;
+  }
+  .piece{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .piece canvas{
+    width:100%; aspect-ratio:1/1;
+    background:#fff;
+    border:2px solid var(--ink);
+    box-shadow:3px 3px 0 var(--ink);
+    image-rendering:pixelated;
+  }
+  .piece .piece-name{
+    font-size:0.85rem;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .piece .piece-meta{
+    font-size:0.72rem; color:#7a745f;
+  }
+  @keyframes riseIn{
+    from{ opacity:0; transform:translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+  .piece.enter{ animation:riseIn .35s ease both; }
+
+  .empty-state{
+    border:2px dashed var(--line);
+    padding:28px 20px;
+    text-align:center;
+    color:#514c3f;
+    font-size:0.95rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mark" id="mark" aria-hidden="true"></div>
+    <div class="title-block">
+      <h1>Pixel Bench</h1>
+      <p>Sketch on a small grid, sign it, and add it to the wall.</p>
+    </div>
+  </header>
+
+  <section aria-labelledby="draw-heading">
+    <h2 id="draw-heading">Draw something</h2>
+    <p class="section-sub">Pick a size and a color, then click or drag on the grid.</p>
+
+    <div class="maker">
+      <div class="canvas-panel">
+        <canvas id="board" width="384" height="384"></canvas>
+        <div class="board-meta mono">
+          <span id="sizeLabel">16 × 16</span>
+          <span id="colorHexLabel">#DDA53B</span>
+        </div>
+      </div>
+
+      <div class="controls panel">
+        <div class="control-row">
+          <label class="field-label">Grid size</label>
+          <div class="tool-group" id="sizeGroup">
+            <button class="btn" data-size="8">Small <span class="mono">8×8</span></button>
+            <button class="btn active" data-size="16">Medium <span class="mono">16×16</span></button>
+            <button class="btn" data-size="24">Large <span class="mono">24×24</span></button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <label class="field-label">Tool</label>
+          <div class="tool-group" id="toolGroup">
+            <button class="btn active" data-tool="pencil">Pencil</button>
+            <button class="btn" data-tool="fill">Fill</button>
+            <button class="btn" data-tool="eraser">Eraser</button>
+            <button class="btn" id="clearBtn">Clear canvas</button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <label class="field-label">Color</label>
+          <div class="swatches" id="swatches"></div>
+          <div class="swatch-custom">
+            <input type="color" id="customColor" value="#dda53b" aria-label="Custom color">
+            <span class="mono" style="font-size:0.8rem;">custom</span>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <label class="field-label" for="artistName">Name</label>
+          <input type="text" id="artistName" placeholder="e.g. Asha" maxlength="30">
+        </div>
+
+        <div class="control-row">
+          <label class="field-label" for="downloadFormat">Download your art</label>
+          <div class="download-row">
+            <select id="downloadFormat" aria-label="File format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="svg">SVG</option>
+            </select>
+            <button class="btn" id="downloadBtn">Download</button>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <button class="btn primary" id="submitBtn" style="width:100%;">Add to the wall</button>
+          <p class="status-line" id="statusLine"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="wall-heading">
+    <h2 id="wall-heading">The wall</h2>
+    <p class="section-sub" id="wallCount">Loading the wall…</p>
+    <div id="galleryArea"></div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  // ---------- Palette (DawnBringer-16, a well-known 16-color pixel-art palette) ----------
+  const PALETTE = [
+    "#140c1c","#442434","#30346d","#4e4a4e",
+    "#854c30","#346524","#d04648","#757161",
+    "#597dce","#d27d2c","#8595a1","#6daa2c",
+    "#d2aa99","#6dc2ca","#dad45e","#deeed6"
+  ];
+
+  // ---------- Header pixel mark: a small diamond, colored from the palette ----------
+  const markPattern = [
+    "...0...",
+    "..111..",
+    ".22222.",
+    "3333333",
+    ".44444.",
+    "..555..",
+    "...6...",
+  ];
+  const markColors = ["#dad45e","#6dc2ca","#597dce","#d04648","#854c30","#442434","#140c1c"];
+  const markEl = document.getElementById('mark');
+  markPattern.forEach(row=>{
+    [...row].forEach(ch=>{
+      const cell = document.createElement('span');
+      cell.style.background = ch === '.' ? 'transparent' : markColors[+ch];
+      markEl.appendChild(cell);
+    });
+  });
+
+  // ---------- State ----------
+  let gridSize = 16;
+  let pixels = new Array(gridSize*gridSize).fill(null);
+  let currentColor = "#DDA53B".toLowerCase();
+  let currentTool = 'pencil';
+  let painting = false;
+
+  const board = document.getElementById('board');
+  const ctx = board.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  const sizeLabel = document.getElementById('sizeLabel');
+  const colorHexLabel = document.getElementById('colorHexLabel');
+  const statusLine = document.getElementById('statusLine');
+
+  function idx(x,y){ return y*gridSize + x; }
+
+  function render(){
+    const cell = board.width / gridSize;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0,0,board.width, board.height);
+    for(let y=0;y<gridSize;y++){
+      for(let x=0;x<gridSize;x++){
+        const c = pixels[idx(x,y)];
+        if(c){
+          ctx.fillStyle = c;
+          ctx.fillRect(x*cell, y*cell, cell, cell);
+        }
+      }
+    }
+    ctx.strokeStyle = "rgba(34,32,27,0.12)";
+    ctx.lineWidth = 1;
+    for(let i=0;i<=gridSize;i++){
+      const p = i*cell;
+      ctx.beginPath(); ctx.moveTo(p,0); ctx.lineTo(p, board.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,p); ctx.lineTo(board.width, p); ctx.stroke();
+    }
+  }
+
+  function setGridSize(n){
+    gridSize = n;
+    pixels = new Array(gridSize*gridSize).fill(null);
+    sizeLabel.textContent = `${n} × ${n}`;
+    document.querySelectorAll('#sizeGroup .btn').forEach(b=>{
+      b.classList.toggle('active', +b.dataset.size === n);
+    });
+    render();
+  }
+
+  function setColor(hex){
+    currentColor = hex.toLowerCase();
+    colorHexLabel.textContent = currentColor;
+    document.querySelectorAll('.swatch').forEach(s=>{
+      s.classList.toggle('selected', s.dataset.color === currentColor);
+    });
+  }
+
+  function setTool(tool){
+    currentTool = tool;
+    document.querySelectorAll('#toolGroup .btn[data-tool]').forEach(b=>{
+      b.classList.toggle('active', b.dataset.tool === tool);
+    });
+  }
+
+  function floodFill(x0,y0,targetColor,replacement){
+    if(targetColor === replacement) return;
+    const stack = [[x0,y0]];
+    while(stack.length){
+      const [x,y] = stack.pop();
+      if(x<0||y<0||x>=gridSize||y>=gridSize) continue;
+      if(pixels[idx(x,y)] !== targetColor) continue;
+      pixels[idx(x,y)] = replacement;
+      stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+  }
+
+  function paintAt(clientX, clientY){
+    const rect = board.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    const relY = clientY - rect.top;
+    const x = Math.floor(relX / (rect.width / gridSize));
+    const y = Math.floor(relY / (rect.height / gridSize));
+    if(x<0||y<0||x>=gridSize||y>=gridSize) return;
+
+    if(currentTool === 'pencil'){
+      pixels[idx(x,y)] = currentColor;
+    } else if(currentTool === 'eraser'){
+      pixels[idx(x,y)] = null;
+    } else if(currentTool === 'fill'){
+      floodFill(x,y, pixels[idx(x,y)], currentColor);
+    }
+    render();
+  }
+
+  // ---------- Export / download ----------
+  const EXPORT_SCALE = 32; // px per pixel-art cell in exported files
+
+  function slugify(name){
+    const s = (name || 'pixel-art').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'');
+    return s || 'pixel-art';
+  }
+
+  function buildExportCanvas(size, data){
+    const c = document.createElement('canvas');
+    c.width = size * EXPORT_SCALE;
+    c.height = size * EXPORT_SCALE;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = false;
+    cx.fillStyle = '#ffffff';
+    cx.fillRect(0, 0, c.width, c.height);
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const col = data[y*size+x];
+        if(col){
+          cx.fillStyle = col;
+          cx.fillRect(x*EXPORT_SCALE, y*EXPORT_SCALE, EXPORT_SCALE, EXPORT_SCALE);
+        }
+      }
+    }
+    return c;
+  }
+
+  function buildSVG(size, data){
+    const dim = size * EXPORT_SCALE;
+    let rects = '';
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const col = data[y*size+x];
+        if(col){
+          rects += `<rect x="${x*EXPORT_SCALE}" y="${y*EXPORT_SCALE}" width="${EXPORT_SCALE}" height="${EXPORT_SCALE}" fill="${col}"/>`;
+        }
+      }
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${dim}" height="${dim}" viewBox="0 0 ${dim} ${dim}"><rect width="${dim}" height="${dim}" fill="#ffffff"/>${rects}</svg>`;
+  }
+
+  function triggerDownload(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportArt(size, data, name, format){
+    const base = slugify(name);
+    if(format === 'svg'){
+      const blob = new Blob([buildSVG(size, data)], {type:'image/svg+xml'});
+      triggerDownload(blob, `${base}.svg`);
+      return;
+    }
+    const canvas = buildExportCanvas(size, data);
+    const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const ext = format === 'jpeg' ? 'jpg' : 'png';
+    canvas.toBlob(blob=>{
+      if(blob) triggerDownload(blob, `${base}.${ext}`);
+    }, mime, 0.92);
+  }
+
+  document.getElementById('downloadBtn').addEventListener('click', ()=>{
+    const format = document.getElementById('downloadFormat').value;
+    const name = document.getElementById('artistName').value.trim();
+    if(!pixels.some(p => p !== null)){
+      setStatus('The grid is empty — draw something first.', 'error');
+      return;
+    }
+    exportArt(gridSize, pixels, name, format);
+  });
+
+  // ---------- Pointer events ----------
+  board.addEventListener('pointerdown', e=>{
+    painting = true;
+    board.setPointerCapture(e.pointerId);
+    paintAt(e.clientX, e.clientY);
+  });
+  board.addEventListener('pointermove', e=>{
+    if(!painting) return;
+    if(currentTool === 'fill') return;
+    paintAt(e.clientX, e.clientY);
+  });
+  ['pointerup','pointerleave','pointercancel'].forEach(evt=>{
+    board.addEventListener(evt, ()=>{ painting = false; });
+  });
+
+  // ---------- Controls wiring ----------
+  document.getElementById('sizeGroup').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-size]');
+    if(btn) setGridSize(+btn.dataset.size);
+  });
+
+  document.getElementById('toolGroup').addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-tool]');
+    if(btn) setTool(btn.dataset.tool);
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    pixels = new Array(gridSize*gridSize).fill(null);
+    render();
+  });
+
+  const swatchesEl = document.getElementById('swatches');
+  PALETTE.forEach(hex=>{
+    const b = document.createElement('button');
+    b.className = 'swatch';
+    b.style.background = hex;
+    b.dataset.color = hex;
+    b.setAttribute('aria-label', `Color ${hex}`);
+    b.addEventListener('click', ()=> setColor(hex));
+    swatchesEl.appendChild(b);
+  });
+
+  document.getElementById('customColor').addEventListener('input', e=>{
+    setColor(e.target.value);
+  });
+
+  setColor(currentColor);
+  setTool('pencil');
+  render();
+
+  // ---------- Storage / gallery ----------
+  const GALLERY_KEY = 'gallery-items';
+  const wallCount = document.getElementById('wallCount');
+  const galleryArea = document.getElementById('galleryArea');
+
+  async function loadGallery(){
+    try{
+      const res = await window.storage.get(GALLERY_KEY, true);
+      return res ? JSON.parse(res.value) : [];
+    }catch(err){
+      return [];
+    }
+  }
+
+  async function saveGallery(items){
+    try{
+      const res = await window.storage.set(GALLERY_KEY, JSON.stringify(items), true);
+      return !!res;
+    }catch(err){
+      return false;
+    }
+  }
+
+  function drawThumb(canvas, size, data){
+    const c = canvas.getContext('2d');
+    canvas.width = 96; canvas.height = 96;
+    c.imageSmoothingEnabled = false;
+    c.fillStyle = "#ffffff";
+    c.fillRect(0,0,96,96);
+    const cell = 96/size;
+    for(let y=0;y<size;y++){
+      for(let x=0;x<size;x++){
+        const col = data[y*size+x];
+        if(col){ c.fillStyle = col; c.fillRect(x*cell,y*cell,cell,cell); }
+      }
+    }
+  }
+
+  function renderGallery(items, animate){
+    if(items.length === 0){
+      wallCount.textContent = "Nothing here yet.";
+      galleryArea.innerHTML = `<div class="empty-state">The wall is empty. Draw something above and be the first to add it.</div>`;
+      return;
+    }
+    wallCount.textContent = items.length === 1 ? "1 piece so far." : `${items.length} pieces so far.`;
+    galleryArea.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'gallery-grid';
+    items.slice().reverse().forEach((item, i)=>{
+      const piece = document.createElement('div');
+      piece.className = 'piece' + (animate ? ' enter' : '');
+      if(animate) piece.style.animationDelay = `${Math.min(i,12)*35}ms`;
+      const canvas = document.createElement('canvas');
+      piece.appendChild(canvas);
+      const name = document.createElement('div');
+      name.className = 'piece-name';
+      name.textContent = item.name;
+      piece.appendChild(name);
+      const meta = document.createElement('div');
+      meta.className = 'piece-meta mono';
+      meta.textContent = `${item.size}×${item.size}`;
+      piece.appendChild(meta);
+
+      const dl = document.createElement('div');
+      dl.className = 'piece-download';
+      const sel = document.createElement('select');
+      sel.setAttribute('aria-label', `File format for ${item.name}`);
+      [['png','PNG'],['jpeg','JPEG'],['svg','SVG']].forEach(([val,label])=>{
+        const opt = document.createElement('option');
+        opt.value = val; opt.textContent = label;
+        sel.appendChild(opt);
+      });
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'btn';
+      dlBtn.textContent = 'Download';
+      dlBtn.addEventListener('click', ()=> exportArt(item.size, item.pixels, item.name, sel.value));
+      dl.appendChild(sel);
+      dl.appendChild(dlBtn);
+      piece.appendChild(dl);
+
+      grid.appendChild(piece);
+      drawThumb(canvas, item.size, item.pixels);
+    });
+    galleryArea.appendChild(grid);
+  }
+
+  let galleryCache = [];
+
+  async function initGallery(){
+    galleryCache = await loadGallery();
+    renderGallery(galleryCache, true);
+  }
+  initGallery();
+
+  // ---------- Submit ----------
+  const submitBtn = document.getElementById('submitBtn');
+  const nameInput = document.getElementById('artistName');
+
+  function setStatus(msg, kind){
+    statusLine.textContent = msg;
+    statusLine.className = 'status-line' + (kind ? ' ' + kind : '');
+  }
+
+  submitBtn.addEventListener('click', async ()=>{
+    const name = nameInput.value.trim();
+    if(!name){
+      setStatus('Add a name before sending this to the wall.', 'error');
+      nameInput.focus();
+      return;
+    }
+    const hasInk = pixels.some(p => p !== null);
+    if(!hasInk){
+      setStatus('The grid is empty — draw something first.', 'error');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    setStatus('Adding to the wall…');
+
+    const entry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+      name: name,
+      size: gridSize,
+      pixels: pixels.slice(),
+      createdAt: new Date().toISOString()
+    };
+
+    const fresh = await loadGallery();
+    fresh.push(entry);
+    const ok = await saveGallery(fresh);
+
+    submitBtn.disabled = false;
+
+    if(!ok){
+      setStatus("Couldn't save that just now — check your connection and try again.", 'error');
+      return;
+    }
+
+    galleryCache = fresh;
+    renderGallery(galleryCache, false);
+    setStatus('Added to the wall.', 'ok');
+    nameInput.value = '';
+    pixels = new Array(gridSize*gridSize).fill(null);
+    render();
+  });
+
+})();
+</script>
+</body>
+</html>
