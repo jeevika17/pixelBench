@@ -1,0 +1,10 @@
+{
+  "name": "pixel-bench-vercel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pixel Bench, deployed on Vercel with Vercel Blob storing each piece's PNG and the gallery index.",
+  "dependencies": {
+    "@vercel/blob": "^2.8.0",
+    "multer": "^2.0.0"
+  }
+}
